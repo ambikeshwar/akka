@@ -67,13 +67,15 @@
 #      The encrypted password is available in your profile here
 #      http://scalasbt.artifactoryonline.com/scalasbt/webapp/profile.html
 #
-# 4) You must have access to repo.akka.io
+# 4) You must have upload access to S3 bucket "downloads.typesafe.com"
 #
-# 4.1) Ask someone in the team for login information for the akkarepo user.
+# 4.1) Ask Akka team member for the AWS access key for 'akka.team' user.
 #
-# 4.2) Install your public ssh key to avoid typing in your password.
-#      From the command line:
-#        shell> cat ~/.ssh/id_rsa.pub | ssh akkarepo@repo.akka.io "cat >> ~/.ssh/authorized_keys"
+# 4.2) Add your credentials to sbt by adding this to your global.sbt file
+#        credentials += Credentials("Amazon S3",
+#          "downloads.typesafe.com.s3.amazonaws.com",
+#          "<Access Key Id>",
+#          "<Secret Access Key>")
 #
 # 5) Have access to github.com/akka/akka. This should be a given.
 #
@@ -182,9 +184,6 @@ type -P git &> /dev/null || fail "git command not found"
 # check for an sbt command
 type -P sbt &> /dev/null || fail "sbt command not found"
 
-# check for an rsync command
-type -P rsync &> /dev/null || fail "rsync command not found"
-
 # check for a tar command
 type -P tar &> /dev/null || fail "tar command not found"
 
@@ -272,10 +271,6 @@ else
 fi
 
 [[ $run_tests ]] && echolog "All tests will be run"
-
-# try ssh'ing to the release server
-echolog "Checking ssh connection to ${release_server}"
-try ssh -t ${release_server} echo "Successfully contacted release server."
 
 echolog "Getting current project version from sbt..."
 declare -r current_version=$(get_current_version)
@@ -368,9 +363,9 @@ fi
 echolog "Pushing ${release_dir} to ${publish_path} ..."
 if [ $dry_run ]; then
   echodry "Not actually pushing to server. Command:"
-  echodry "  rsync -rlpvz --chmod=Dg+ws,Fg+w ${release_dir}/ ${publish_path}/"
+  echodry "  sbt upload-release"
 else
-  important rsync -rlpvz --chmod=Dg+ws,Fg+w ${release_dir}/ ${publish_path}/
+  important sbt upload-release
 fi
 
 if [ $dry_run ]; then
